@@ -11,6 +11,8 @@ export type IUser = {
   verified:boolean,
   phone?:string,
   status: STATUS,
+  isOnline: boolean,
+  lastSeen: Date,
   authentication?: {
     isResetPassword: boolean,
     oneTimeCode: number,
