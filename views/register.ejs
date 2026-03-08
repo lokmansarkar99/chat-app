@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Register — Chat App</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f0f2f5;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+    .card {
+      background: #fff;
+      padding: 2rem;
+      border-radius: 12px;
+      box-shadow: 0 2px 16px rgba(0,0,0,0.1);
+      width: 100%;
+      max-width: 400px;
+    }
+    h2 { text-align: center; margin-bottom: 1.5rem; color: #1a1a2e; }
+    .form-group { margin-bottom: 1rem; }
+    label { display: block; margin-bottom: 0.4rem; font-size: 0.9rem; color: #555; }
+    input {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 1rem;
+      outline: none;
+      transition: border 0.2s;
+    }
+    input:focus { border-color: #6c63ff; }
+    button {
+      width: 100%;
+      padding: 0.85rem;
+      background: #6c63ff;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+      margin-top: 0.5rem;
+      transition: background 0.2s;
+    }
+    button:hover { background: #5a52d5; }
+    .msg {
+      font-size: 0.85rem;
+      margin-top: 0.75rem;
+      text-align: center;
+      display: none;
+    }
+    .msg.error { color: #e53e3e; }
+    .msg.success { color: #38a169; }
+    .footer {
+      text-align: center;
+      margin-top: 1.2rem;
+      font-size: 0.9rem;
+      color: #777;
+    }
+    .footer a { color: #6c63ff; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>📝 Create Account</h2>
+    <div class="form-group">
+      <label>Full Name</label>
+      <input type="text" id="name" placeholder="John Doe" />
+    </div>
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" id="email" placeholder="your@email.com" />
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="password" placeholder="Min 8 characters" />
+    </div>
+    <button id="registerBtn">Register</button>
+    <p class="msg" id="msgEl"></p>
+    <div class="footer">
+      Already have an account? <a href="/login">Login</a>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById('registerBtn').addEventListener('click', async () => {
+      const name     = document.getElementById('name').value.trim();
+      const email    = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value.trim();
+      const msgEl    = document.getElementById('msgEl');
+
+      if (!name || !email || !password) {
+        msgEl.className = 'msg error';
+        msgEl.style.display = 'block';
+        msgEl.textContent = 'All fields are required.';
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/v1/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, email, password }),
+        });
+
+        const data = await res.json();
+
+        if (!data.success) {
+          msgEl.className = 'msg error';
+          msgEl.style.display = 'block';
+          msgEl.textContent = data.message || 'Registration failed.';
+          return;
+        }
+
+        // ── Success → OTP verify করতে বলো ──────────────────────
+        msgEl.className = 'msg success';
+        msgEl.style.display = 'block';
+        msgEl.textContent = '✅ Registered! Check your email for OTP, then login.';
+
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 3000);
+      } catch (err) {
+        msgEl.className = 'msg error';
+        msgEl.style.display = 'block';
+        msgEl.textContent = 'Server error. Try again.';
+      }
+    });
+  </script>
+</body>
+</html>

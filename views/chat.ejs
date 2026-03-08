@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Chat App</title>
+
+  <!-- Socket.IO Client — Express automatically serves this from /socket.io/ -->
+  <script src="/socket.io/socket.io.js"></script>
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #1a1a2e;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      color: #fff;
+    }
+    .container {
+      background: #16213e;
+      border-radius: 16px;
+      padding: 2rem;
+      width: 90%;
+      max-width: 600px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+    h2 { color: #6c63ff; margin-bottom: 1rem; }
+    .status-box {
+      background: #0f3460;
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      font-size: 0.95rem;
+    }
+    .status-box span { color: #a0aec0; }
+    #connectionStatus {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+    .online { color: #48bb78; }
+    .offline { color: #fc8181; }
+    .log-box {
+      background: #0a0a23;
+      border-radius: 8px;
+      padding: 1rem;
+      height: 300px;
+      overflow-y: auto;
+      font-size: 0.85rem;
+      line-height: 1.8;
+    }
+    .log-entry { padding: 0.2rem 0; border-bottom: 1px solid #1a1a3e; }
+    .log-entry.green { color: #68d391; }
+    .log-entry.red   { color: #fc8181; }
+    .log-entry.blue  { color: #63b3ed; }
+    .log-entry.gray  { color: #a0aec0; }
+    .btn-row {
+      display: flex;
+      gap: 0.75rem;
+      margin-top: 1rem;
+    }
+    button {
+      flex: 1;
+      padding: 0.75rem;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      font-weight: 600;
+      transition: opacity 0.2s;
+    }
+    button:hover { opacity: 0.85; }
+    #disconnectBtn { background: #fc8181; color: #1a1a2e; }
+    #reconnectBtn  { background: #68d391; color: #1a1a2e; }
+    #clearBtn      { background: #a0aec0; color: #1a1a2e; }
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      background: #0f3460;
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      margin-bottom: 1rem;
+    }
+    .avatar {
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      background: #6c63ff;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: bold; font-size: 1.1rem;
+    }
+    .user-name { font-weight: 600; font-size: 1rem; }
+    .user-role { font-size: 0.75rem; color: #a0aec0; }
+    .logout-link {
+      margin-left: auto;
+      color: #fc8181;
+      font-size: 0.8rem;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>🔌 Socket.IO — Phase 1 Test</h2>
+
+    <!-- User Info Bar -->
+    <div class="user-info" id="userInfoBar" style="display:none;">
+      <div class="avatar" id="avatarEl">?</div>
+      <div>
+        <div class="user-name" id="userNameEl">—</div>
+        <div class="user-role" id="userRoleEl">—</div>
+      </div>
+      <span class="logout-link" onclick="logout()">Logout</span>
+    </div>
+
+    <!-- Connection Status -->
+    <div class="status-box">
+      <div id="connectionStatus" class="offline">⚫ Disconnected</div>
+      <div><span>Socket ID: </span><span id="socketIdEl">—</span></div>
+      <div><span>Online Users: </span><span id="onlineCountEl">0</span></div>
+    </div>
+
+    <!-- Event Log -->
+    <div class="log-box" id="logBox">
+      <div class="log-entry gray">📋 Events will appear here...</div>
+    </div>
+
+    <!-- Control Buttons -->
+    <div class="btn-row">
+      <button id="disconnectBtn" onclick="socket.disconnect()">Disconnect</button>
+      <button id="reconnectBtn"  onclick="socket.connect()">Reconnect</button>
+      <button id="clearBtn"      onclick="clearLog()">Clear Log</button>
+    </div>
+  </div>
+
+  <script>
+    // ────────────────────────────────────────────────────────────
+    // Step 1: Token check — না থাকলে login-এ redirect
+    // ────────────────────────────────────────────────────────────
+    const token = localStorage.getItem('accessToken');
+    const user  = JSON.parse(localStorage.getItem('user') || 'null');
+
+    if (!token) {
+      window.location.href = '/login';
+    }
+
+    // ── User info bar দেখাও ──────────────────────────────────
+    if (user) {
+      document.getElementById('userInfoBar').style.display = 'flex';
+      document.getElementById('userNameEl').textContent = user.name || '—';
+      document.getElementById('userRoleEl').textContent = user.role || '—';
+      document.getElementById('avatarEl').textContent =
+        (user.name || 'U').charAt(0).toUpperCase();
+    }
+
+    // ────────────────────────────────────────────────────────────
+    // Step 2: Socket.IO connect with JWT
+    //
+    // auth.token → server-এ socket.handshake.auth.token হবে
+    // Server JWT middleware এটা verify করবে
+    // ────────────────────────────────────────────────────────────
+    const socket = io({
+      auth: { token }
+    });
+
+    // ── Helper: Log box-এ entry add করো ──────────────────────
+    function addLog(msg, type = 'gray') {
+      const box   = document.getElementById('logBox');
+      const entry = document.createElement('div');
+      entry.className = `log-entry ${type}`;
+      const time = new Date().toLocaleTimeString();
+      entry.textContent = `[${time}] ${msg}`;
+      box.appendChild(entry);
+      box.scrollTop = box.scrollHeight;
+    }
+
+    function clearLog() {
+      document.getElementById('logBox').innerHTML =
+        '<div class="log-entry gray">📋 Log cleared.</div>';
+    }
+
+    function logout() {
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('user');
+      socket.disconnect();
+      window.location.href = '/login';
+    }
+
+    // ────────────────────────────────────────────────────────────
+    // Socket Events — Phase 1 Test
+    // ────────────────────────────────────────────────────────────
+
+    // ── Connected ──────────────────────────────────────────────
+    socket.on('connect', () => {
+      document.getElementById('connectionStatus').className = 'online';
+      document.getElementById('connectionStatus').textContent =
+        '🟢 Connected';
+      document.getElementById('socketIdEl').textContent = socket.id;
+      addLog(`✅ Connected! socketId: ${socket.id}`, 'green');
+    });
+
+    // ── Auth Failed / Connection Error ────────────────────────
+    // Server JWT middleware next(new Error("...")) দিলে এখানে আসে
+    socket.on('connect_error', (err) => {
+      document.getElementById('connectionStatus').className = 'offline';
+      document.getElementById('connectionStatus').textContent =
+        '🔴 Auth Failed';
+      addLog(`❌ connect_error: ${err.message}`, 'red');
+
+      // Token expired হলে login-এ redirect করো
+      if (
+        err.message.includes('expired') ||
+        err.message.includes('Invalid token') ||
+        err.message.includes('Authentication failed')
+      ) {
+        addLog('🔄 Redirecting to login in 2s...', 'gray');
+        setTimeout(() => {
+          localStorage.removeItem('accessToken');
+          window.location.href = '/login';
+        }, 2000);
+      }
+    });
+
+    // ── Disconnected ───────────────────────────────────────────
+    socket.on('disconnect', (reason) => {
+      document.getElementById('connectionStatus').className = 'offline';
+      document.getElementById('connectionStatus').textContent =
+        '⚫ Disconnected';
+      document.getElementById('socketIdEl').textContent = '—';
+      addLog(`🔴 Disconnected. Reason: ${reason}`, 'red');
+    });
+
+    // ── Online Users List (connect হলে server পাঠায়) ─────────
+    // server: socket.emit("online:users-list", currentOnlineIds)
+    socket.on('online:users-list', (userIds) => {
+      document.getElementById('onlineCountEl').textContent = userIds.length;
+      addLog(`📋 Currently online users: [${userIds.join(', ')}]`, 'blue');
+    });
+
+    // ── কেউ online হলে ────────────────────────────────────────
+    // server: socket.broadcast.emit("user:online", { userId, userName })
+    socket.on('user:online', ({ userId, userName }) => {
+      const count = parseInt(document.getElementById('onlineCountEl').textContent) + 1;
+      document.getElementById('onlineCountEl').textContent = count;
+      addLog(`🟢 ${userName} (${userId}) came online`, 'green');
+    });
+
+    // ── কেউ offline হলে ───────────────────────────────────────
+    // server: socket.broadcast.emit("user:offline", { userId, userName, lastSeen })
+    socket.on('user:offline', ({ userId, userName, lastSeen }) => {
+      const count = Math.max(
+        0,
+        parseInt(document.getElementById('onlineCountEl').textContent) - 1
+      );
+      document.getElementById('onlineCountEl').textContent = count;
+      const t = new Date(lastSeen).toLocaleTimeString();
+      addLog(`🔴 ${userName} went offline. Last seen: ${t}`, 'red');
+    });
+  </script>
+</body>
+</html>
