@@ -12,62 +12,56 @@ const getOrCreateConversation = async (myId: string, receiverId: string) => {
   }
 
   if (myId === receiverId) {
-    throw new ApiError(
-      StatusCodes.BAD_REQUEST,
-      "You cannot start a conversation with yourself"
-    );
+    throw new ApiError(StatusCodes.BAD_REQUEST, "You cannot start a conversation with yourself");
   }
 
   let conversation = await Conversation.findOne({
     participants: { $all: [myId, receiverId] },
-  }).populate("participants", "name email profileImage isOnline lastSeen");
-  // ── lastMessage populate সরানো হয়েছে (Message model Phase 3-এ) ──
+  })
+    .populate("participants", "name email profileImage isOnline lastSeen")
+    .populate("lastMessage", "text attachment createdAt sender");  // ✅ restored
 
-  if (conversation) {
-    return conversation;
-  }
+  if (conversation) return conversation;
 
   const newConversation = await Conversation.create({
-    participants: [myId, receiverId],
+    participants:  [myId, receiverId],
     lastMessageAt: new Date(),
   });
 
   const populated = await Conversation.findById(newConversation._id)
-    .populate("participants", "name email profileImage isOnline lastSeen");
-  // ── lastMessage populate সরানো হয়েছে ──
+    .populate("participants", "name email profileImage isOnline lastSeen")
+    .populate("lastMessage", "text attachment createdAt sender");  // ✅ restored
+
+  if (!populated) {
+    throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, "Failed to create conversation");
+  }
 
   return populated;
 };
 
 const getMyConversations = async (myId: string) => {
-  const conversations = await Conversation.find({
-    participants: myId,
-  })
+  return await Conversation.find({ participants: myId })
     .populate("participants", "name email profileImage isOnline lastSeen")
-    // ── lastMessage populate সরানো হয়েছে (Phase 3-এ ফিরে আসবে) ──
+    .populate("lastMessage", "text attachment createdAt sender")   // ✅ restored
     .sort({ lastMessageAt: -1 });
-
-  return conversations;
 };
 
 const getSingleConversation = async (conversationId: string, myId: string) => {
   const conversation = await Conversation.findById(conversationId)
-    .populate("participants", "name email profileImage isOnline lastSeen");
-  // ── lastMessage populate সরানো হয়েছে ──
+    .populate("participants", "name email profileImage isOnline lastSeen")
+    .populate("lastMessage", "text attachment createdAt sender");  // ✅ restored
 
   if (!conversation) {
     throw new ApiError(StatusCodes.NOT_FOUND, "Conversation not found");
   }
 
+  // ✅ (p: any) → participant populate হয়েছে, তাই _id আছে
   const isParticipant = conversation.participants.some(
     (p: any) => p._id.toString() === myId
   );
 
   if (!isParticipant) {
-    throw new ApiError(
-      StatusCodes.FORBIDDEN,
-      "You are not a participant of this conversation"
-    );
+    throw new ApiError(StatusCodes.FORBIDDEN, "You are not a participant of this conversation");
   }
 
   return conversation;

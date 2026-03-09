@@ -1,10 +1,13 @@
-// fieldname (form-data key) → actual folder on disk
+// src/shared/getFilePath.ts
+
+// ── fieldname → disk folder ────────────────────────────────────
 const FIELD_TO_FOLDER: Record<string, string> = {
   profileImage: 'user',
   productImage: 'product',
   image:        'image',
   media:        'media',
   doc:          'doc',
+  attachment:   'attachments',  
 };
 
 export type IFolderName =
@@ -13,12 +16,13 @@ export type IFolderName =
   | 'image'
   | 'media'
   | 'doc'
+  | 'attachment'    
   | 'license'
   | 'banner'
   | 'logo'
   | 'others';
 
-// ── Single file path ──────────────────────────────
+// ── Single file → "/folder/filename.ext" ──────────────────────
 export const getSingleFilePath = (
   files: any,
   fieldName: IFolderName
@@ -31,7 +35,7 @@ export const getSingleFilePath = (
   return undefined;
 };
 
-// ── Multiple file paths ───────────────────────────
+// ── Multiple files → ["/folder/a.jpg", "/folder/b.jpg"] ───────
 export const getMultipleFilesPath = (
   files: any,
   fieldName: IFolderName

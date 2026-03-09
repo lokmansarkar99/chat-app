@@ -35,7 +35,12 @@ app.use(globalRateLimiter);
 // ─────────────────────────────────────────────────────────────
 app.use(
   cors({
-    origin: config.client_url,
+    origin: [
+      config.client_url as string,
+      "http://localhost:5005",
+      "http://localhost:3000",
+      "http://127.0.0.1:5005",
+    ].filter(Boolean),
     credentials: true,
   })
 );
@@ -61,7 +66,10 @@ app.use(express.static(path.join(__dirname, "../public")));
 // ─────────────────────────────────────────────────────────────
 // Uploads Static
 // ─────────────────────────────────────────────────────────────
-app.use("/api/v1/uploads", express.static("uploads"));
+app.use(
+  "/api/v1/uploads",
+  express.static(path.join(process.cwd(), "uploads"))
+);
 
 // ─────────────────────────────────────────────────────────────
 // Health Check
