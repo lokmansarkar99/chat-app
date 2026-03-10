@@ -4,9 +4,9 @@
   "description": "Advanced backend with proper scalable structure",
   "main": "app.ts",
   "scripts": {
-    "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
-    "start": "node dist/server.js",
-    "build": "tsc",
+    "dev": "node api.js && ts-node-dev --respawn --transpile-only src/server.ts",
+    "start": "node api.js && node dist/server.js",
+    "build": "node api.js && tsc",
     "format": "prettier --write ",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
