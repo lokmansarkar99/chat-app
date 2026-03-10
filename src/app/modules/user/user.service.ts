@@ -110,9 +110,41 @@ const updateUserStatus = async (userId: string, payload: UpdateUserStatusPayload
     return { message: `User status updated to ${payload.status}`}
 
 }
+
+
+const getAllUsersClientForChat = async (query: Record<string, unknown>) => {
+  const page  = Number(query.page)  || 1;
+  const limit = Number(query.limit) || 10;
+  const skip  = (page - 1) * limit;
+
+  const filter: Record<string, unknown> = {};
+
+  if (query.role) filter.role = query.role;
+
+  // ✅ email + name দুটোতেই search করো
+  if (query.search) {
+    filter.$or = [
+      { email: { $regex: query.search, $options: "i" } },
+      { name:  { $regex: query.search, $options: "i" } },  // ← যোগ করা হলো
+    ];
+  }
+
+  const [users, total] = await Promise.all([
+    User.find(filter).skip(skip).limit(limit).lean(),
+    User.countDocuments(filter),
+  ]);
+
+  return {
+    users,
+    meta: { page, limit, totalPages: Math.ceil(total / limit) },
+  };
+};
+
+
 export const UserService = {
     getMyProfile,
     updateMyProfile,
     getAllUsers,
+    getAllUsersClientForChat,
     updateUserStatus
 }

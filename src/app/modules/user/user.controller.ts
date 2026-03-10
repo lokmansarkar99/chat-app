@@ -60,6 +60,19 @@ const allUsers = catchAsync(async (req:Request, res: Response) => {
 })
 
 
+const allUsersChat = catchAsync(async (req:Request, res: Response) => {
+
+    const result = await UserService.getAllUsersClientForChat(req.query)
+
+      console.log(result)
+    sendResponse(res, {
+      success: true,
+      message: "All user fetched successfullyly",
+      statusCode: StatusCodes.OK,
+      data: result
+    })
+})
+
 const updateUserStatus = catchAsync(async(req:Request, res:Response) => {
 
   const result = await UserService.updateUserStatus(req.params.id as string, req.body)
@@ -78,6 +91,7 @@ export const userController = {
     getMyProfile,
     updateProfile,
     allUsers,
+    allUsersChat, 
     updateUserStatus
 
 }

@@ -8,6 +8,7 @@ import { userController } from "./user.controller";
 import validateRequest from "../../middlewares/validateRequest";
 import fileUploadHandler from "../../middlewares/fileUploadHandler";
 import { UserValidation } from "./user.validation";
+import { check } from "zod";
 
 router.get(
   "/profile",
@@ -30,6 +31,8 @@ router
 
 
   router.route("/users").get(checkAuth(USER_ROLES.ADMIN), userController.allUsers)
+
+  router.route("/users/chats").get(checkAuth(USER_ROLES.USER), userController.allUsersChat)
 
   router.route("/users/:id").patch(checkAuth(USER_ROLES.ADMIN), validateRequest(UserValidation.updateUserStatusSchema), userController.updateUserStatus)
 
